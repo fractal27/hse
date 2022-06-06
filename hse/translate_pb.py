@@ -12,7 +12,7 @@ def human_readable(pb: int) -> str:
     :return: human readable string
     """
     if isinstance(pb, int):
-        _final = [bin(int(x))[2:] for x in oct(pb)[2:]]
+        _final = [format(int(x),'b').ljust(3,'0') for x in oct(pb)[2:]]
         final = ''.join([f'{"r" if x[0]=="1" else "-"}{"w" if x[1]=="1" else "-"}{"x" if x[2]=="1" else "-"}' for x in _final])
         return final
     return pb

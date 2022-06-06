@@ -1,8 +1,4 @@
-# copy of the original hse.py but runnable directly as a script
-
-from re import A
 import tempfile
-from turtle import width
 import compressor as compressor
 import argparse
 import os
@@ -69,8 +65,10 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
 
     try:
         logging.info("Displaying {0}, {1}".format(path_1, path_2))
+        print("before")
         paths_1, paths_2 = os.listdir(path_1)[
             scrolled1:scrolled1+HEIGHT-1], os.listdir(path_2)[scrolled2:scrolled2+HEIGHT-1]
+        print("after")
 
         paths_1 += [' ']*(abs(len(paths_1)-HEIGHT)-1)
         paths_2 += [' ']*(abs(len(paths_2)-HEIGHT)-1)
@@ -321,8 +319,11 @@ def cli_interface(config,config_path):
 
 def argument_parsing():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-l", "--log", type=str, default=os.path.join(os.path.dirname(__file__),
-                        "logs", f'{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'), help="Path to the log file")
+    #parser.add_argument("-l", "--log", type=str, default=os.path.join(os.path.dirname(__file__),
+    #                    "logs", f'{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'), help="Path to the log file")
+    parser.add_argument("-l", "--log", type=str, default=None, help="Path to the log file")
+
+
     parser.add_argument("-c","--config", type=str, help="configuration file to use", default=os.path.join(os.path.dirname(__file__),'save.json'))
     parser.add_argument("-o", "--output", type=str,
                         help="Path to the output file")
@@ -341,8 +342,13 @@ def main():
         print("Config file not found")
         return
     config = json.load(open(os.path.join(os.path.dirname(__file__),args.config),'r'))
-    logging.basicConfig(filename=args.log,level=logging.DEBUG if args.verbose else logging.INFO,
+    if args.log:
+        logging.basicConfig(filename=args.log,level=logging.DEBUG if args.verbose else logging.INFO,
                 format=config["log"].get("format"), datefmt=config["log"].get("datefmt"))
+    else:
+        logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
+                format=config["log"].get("format"), datefmt=config["log"].get("datefmt"))
+
     logger=logging.getLogger("hse")
 
     logger.debug("Started")
