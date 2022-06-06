@@ -1,6 +1,8 @@
 # copy of the original hse.py but runnable directly as a script
 
+from re import A
 import tempfile
+from turtle import width
 import compressor as compressor
 import argparse
 import os
@@ -104,11 +106,13 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
         mat[0, 3+i*4] = gettext("Protection Bits")
     mat[1:, 0] = list(map(lambda x: x.ljust(WIDTH, ' ')[:WIDTH], paths_1))
     mat[1:, 1] = list(map(gettext, exts_1))
-    mat[1:, 2] = list(map(gettext, dims_1))
+    mat[1:, 2] = list(map(lambda x: str(x).rjust(WIDTH, ' ')[:WIDTH], dims_1))
+    # mat[1:, 2] = list(map(gettext, dims_1))
     mat[1:, 3] = list(map(gettext, attrs_1))
     mat[1:, 4] = list(map(lambda x: x.ljust(WIDTH, ' ')[:WIDTH], paths_2))
     mat[1:, 5] = list(map(gettext, exts_2))
-    mat[1:, 6] = list(map(gettext, dims_2))
+    # mat[1:, 6] = list(map(gettext, dims_2))
+    mat[1:, 6] = list(map(lambda x: str(x).rjust(WIDTH, ' ')[:WIDTH], dims_2))
     mat[1:, 7] = list(map(gettext, attrs_2))
 
     ORIZZ_SLICE = slice(0, 3) if not panel else slice(4, 7)
@@ -149,13 +153,18 @@ def cli_interface(config,config_path):
 
             char = getch()
             logging.debug("Key pressed: {0}".format(char))
+            if char.isdigit():
+                if not panel:
+                    y = 1+(int(char)%len([x for x in mat[1:, 0] if x.endswith(' '*HEIGHT)]))
+                    continue
+                y = int(char)%len([x for x in mat[1:, 4] if x.endswith(' '*HEIGHT)])
 
             if char in ['q', "\x1b", "\x03", "\x04"]:
                 logging.debug("Exiting")
                 break
 
             elif char == '\t':
-                print("\033[7mSwitching panels\033[0m")
+                # print("\033[7mSwitching panels\033[0m")
                 panel = 1-panel
                 y = 1
 
@@ -290,6 +299,7 @@ def cli_interface(config,config_path):
                 else:
                     shutil.copy(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
+
             
         except Exception as e:
             logging.error(e)
