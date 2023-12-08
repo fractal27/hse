@@ -14,22 +14,25 @@ And then sectioned in 4 parts:
 - Size 
 - Protection Bits
 
+It is avaiable in linux and windows although some features might not work for linux.
+
+
 *These are the comands currently avaiable:*
 ~~~
-    tab              : move to the next section
-    q  / ^C  /  esc  : quit
-    c                : Compress the item selected with the chosen algorithm
-    d                : Decompress the item selected with the chosen algorithm
-    s                : move down in the current section
-    w                : move up in the current section
-    Enter            : open the selected element
-    '/'              : search in the current section
-    c                : compress the item currently selected - (**currently not working**)
-    1-9              : select the n-th item in the current section
-    r                : rename the item currently selected
-    m                : Move the item currently selected to the other folder open
-    <F5>             : Copy the item selected to the other folder open
-    x                : Delete an item
+    tab               : move to the next section
+    q                 : quit
+    c                 : Compress the item selected with the chosen algorithm
+    d                 : Decompress the item selected with the chosen algorithm
+    s                 : move down in the current section
+    w                 : move up in the current section
+    Enter             : open the selected element
+    '/'               : search in the current section
+    c                 : compress the item currently selected - (**currently not working**)
+    1-9               : select the n-th item in the current section
+    r                 : rename the item currently selected
+    m                 : Move the item currently selected to the other folder open
+    <F5>(Win32), =, . : Copy the item selected to the other folder open
+    x                 : Delete an item
     
     'Any Other'      : refresh the current section and do nothing
     
@@ -41,7 +44,7 @@ usage: hse.py [-h] [-l LOG] [-c CONFIG] [-o OUTPUT] [-c1 COMPRESS_LEVEL] [-c4 {l
 
 options:
   -h, --help            show this help message and exit
-  -l LOG, --log LOG     Path to the log file (if not specified it'll display the errors directly in the terminal)
+  -l LOG, --log LOG     Path to the log file (if not specified the default file is stdout)
   -c CONFIG, --config CONFIG
                         configuration file to use
 
@@ -77,12 +80,9 @@ The default configuration is structured as follows:
 Obviously, you can change the configuration as long as you don't change the name of the file.
 
 ## Features
-- The explorer is divided into 2 panels
-- The panels are divided into items
-- The items are divided into coordinates
-- Coordinates are the y-axis of the items
 - The explorer can be configured
 - explorer can compress/decompress the items using various algorithms
-- explorer has automatic log
-- explorer can be used in a terminal
-- is cross-platform
+- explorer has log which can be redirected in any file.
+- will make you see also protection bits and extension.
+- explorer can be used in a terminal.
+- is cross-platform.

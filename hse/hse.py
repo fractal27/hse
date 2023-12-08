@@ -37,25 +37,16 @@ if sys.platform.startswith("win32"):
             return '\x03'
 
     def clear(): return os.system("cls")
+    BS_KEY = "\b"
 
 else:
     # setting getch for linux
-    import sys
-    import tty
-    import termios
+    from getch import getch
+    from curses.ascii import BS
 
-    def getch():
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(sys.stdin.fileno())
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ch
+    BS_KEY = chr(BS)
 
     def clear(): return os.system("clear")
-
 
 def gettext(x):
     return str(x).center(WIDTH, ' ')[:WIDTH]
@@ -64,11 +55,9 @@ def gettext(x):
 def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled2: int = 0, panel: Literal[0, 1] = 0):
 
     try:
-        logging.info("Displaying {0}, {1}".format(path_1, path_2))
-        print("before")
+        logging.debug("Displaying {0}, {1}".format(path_1, path_2))
         paths_1, paths_2 = os.listdir(path_1)[
             scrolled1:scrolled1+HEIGHT-1], os.listdir(path_2)[scrolled2:scrolled2+HEIGHT-1]
-        print("after")
 
         paths_1 += [' ']*(abs(len(paths_1)-HEIGHT)-1)
         paths_2 += [' ']*(abs(len(paths_2)-HEIGHT)-1)
@@ -102,15 +91,15 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
         mat[0, 1+i*4] = gettext("Extension")
         mat[0, 2*(1+i*2)] = gettext("Size")
         mat[0, 3+i*4] = gettext("Protection Bits")
-    mat[1:, 0] = list(map(lambda x: x.ljust(WIDTH, ' ')[:WIDTH], paths_1))
+    mat[1:, 0] = [x.ljust(WIDTH, ' ')[:WIDTH] for x in paths_1]
     mat[1:, 1] = list(map(gettext, exts_1))
-    mat[1:, 2] = list(map(lambda x: str(x).rjust(WIDTH, ' ')[:WIDTH], dims_1))
+    mat[1:, 2] = [str(x).rjust(WIDTH, ' ')[:WIDTH]for x in dims_1]
     # mat[1:, 2] = list(map(gettext, dims_1))
     mat[1:, 3] = list(map(gettext, attrs_1))
-    mat[1:, 4] = list(map(lambda x: x.ljust(WIDTH, ' ')[:WIDTH], paths_2))
+    mat[1:, 4] = [x.ljust(WIDTH, ' ')[:WIDTH] for x in paths_2]
     mat[1:, 5] = list(map(gettext, exts_2))
     # mat[1:, 6] = list(map(gettext, dims_2))
-    mat[1:, 6] = list(map(lambda x: str(x).rjust(WIDTH, ' ')[:WIDTH], dims_2))
+    mat[1:, 6] = [str(x).rjust(WIDTH, ' ')[:WIDTH] for x in dims_2]
     mat[1:, 7] = list(map(gettext, attrs_2))
 
     ORIZZ_SLICE = slice(0, 3) if not panel else slice(4, 7)
@@ -118,11 +107,10 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
     mat[y, ORIZZ_SLICE] = [f'\033[7m{x}\033[0m' for x in mat[y, ORIZZ_SLICE]]
 
     logging.debug("Matrix Calculated.")
-    logging.info("Matrix displayed properly.")
+    logging.debug("Matrix displayed properly.")
 
     name = mat[y, 0] if not panel else mat[y, 4]
 
-    print(*[''.join(x) for x in mat], name, sep='\n')
     return mat
 
 
@@ -157,16 +145,16 @@ def cli_interface(config,config_path):
                     continue
                 y = int(char)%len([x for x in mat[1:, 4] if x.endswith(' '*HEIGHT)])
 
-            if char in ['q', "\x1b", "\x03", "\x04"]:
+            if char == 'q':
                 logging.debug("Exiting")
                 break
 
             elif char == '\t':
-                # print("\033[7mSwitching panels\033[0m")
+                print("\033[7mSwitching panels\033[0m")
                 panel = 1-panel
                 y = 1
 
-            elif char == 'w':
+            elif char in ['w',"k"]:
                 y -= 1
                 if y < 1:
                     y = 1
@@ -176,7 +164,7 @@ def cli_interface(config,config_path):
                     elif panel and scrolled2 > 0:
                         scrolled2 -= 1
 
-            elif char == 's':
+            elif char in ['s' ,'j']:
                 if y == HEIGHT-1:
                     if not panel:
                         scrolled1 += 1
@@ -231,7 +219,7 @@ def cli_interface(config,config_path):
                         logging.error("Unknown type")
                 else:
                     logging.error("File not found")
-            elif char == '\b':
+            elif char == BS_KEY:
                 logging.info("Returning to main directory")
                 if not panel:
                     path_1 = os.path.dirname(path_1)
@@ -241,7 +229,7 @@ def cli_interface(config,config_path):
                 mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel)
             elif char == '/':
                 logging.info("Searching")
-                SEARCH = input(":")
+                SEARCH = input("/")
                 if not panel:
                     mat = [x for x in display_paths(
                         path_1, path_2, y, scrolled1, scrolled2, panel) if SEARCH in x[0]]
@@ -281,28 +269,32 @@ def cli_interface(config,config_path):
                 else:
                     os.rename(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
-            elif char == 'x':
-                logging.info("Deleting {0}".format(mat[y, 0]))
+            elif char == 'x' or char == "\x7F":
+                logging.info("Deleting file...")
                 if not panel:
-                    os.remove(os.path.join(path_1, mat[y, 0]))
+                    filename = mat[y, 0].replace("\033[7m","").replace("\033[0m","").strip()
+                    os.remove(os.path.join(path_1, filename))
                 else:
-                    os.remove(os.path.join(path_2, mat[y, 4]))
+                    filename = mat[y, 4].replace("\033[7m","").replace("\033[0m","").strip()
+                    os.remove(os.path.join(path_2, filename))
             #if is f5
-            elif char == '\x15':
+            elif char in ['.', '=']:
                 #copy the file to the other panel
-                logging.info("Copying {0}".format(mat[y, 0]))
+                filename = mat[y, 0].replace("\033[7m","").replace("\033[0m","").strip()
                 if not panel:
-                    shutil.copy(os.path.join(path_1, mat[y, 0]), os.path.join(
-                        path_2, mat[y, 0]))
+                    shutil.copy(os.path.join(path_1, filename), os.path.join(
+                        path_2, filename))
                 else:
-                    shutil.copy(os.path.join(path_2, mat[y, 4]), os.path.join(
-                        path_1, mat[y, 4]))
+                    shutil.copy(os.path.join(path_2, filename), os.path.join(
+                        path_1, filename))
+            else:
+                logging.error(f"{ord(char)}not supported.")
 
-            
+
         except Exception as e:
             logging.error(e)
             errors.append(repr(e))
-    
+
     logging.info("Saving to file")
     today = datetime.today()
     logging.debug("changing data...")

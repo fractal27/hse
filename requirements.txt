@@ -1,0 +1,6 @@
+lz4
+getch
+numpy
+logging
+
+
