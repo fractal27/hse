@@ -180,6 +180,15 @@ def cli_interface(config,config_path):
 
             char = getch()
             logging.debug("Key pressed: {0}".format(char))
+            if not panel:
+                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
+                                     .removesuffix("\033[0m").strip()
+                path = path_1
+            else:
+                mat[y, 4] = mat[y, 4].removeprefix("\033[7m")\
+                                     .removesuffix("\033[0m").strip()
+                path = path_2
+
             if char.isdigit():
                 if not panel:
                     y = 1+(int(char)%len([x for x in mat[1:, 0] if x.endswith(' '*HEIGHT)]))
@@ -226,31 +235,28 @@ def cli_interface(config,config_path):
             elif char in ['\n', '\r']:
 
                 name = mat[y, 0] if panel == 0 else mat[y, 4]
-                name = name.removesuffix("\033[0m").removeprefix("\033[7m").strip()
                 ext = mat[y, 1] if panel == 0 else mat[y, 5]
                 ext = ext.removeprefix("\033[7m").removesuffix("\033[0m").strip()
                 if ext in name:
                     ext = ''
                 y = 1
                 scrolled1, scrolled2 = 0, 0
-                logging.info("Opening {0}".format(name))
+                logging.info("Opening {0}".format(f"{name}/{path}"))
                 clear()
 
-                if os.path.isdir(os.path.join(path_1, name)) if not panel else os.path.isdir(os.path.join(path_2, name)):
+                if os.path.isdir(os.path.join(path, name)):
                     logging.debug("Is a directory:")
-                    to_change = path_1 if not panel else path_2
-                    path_1 = os.path.join(
-                        to_change, name) if not panel else path_1
+                    to_change = path
+                    path_1 = path_1 if     panel else os.path.join(
+                        to_change, name)
                     path_2 = path_2 if not panel else os.path.join(
                         to_change, name)
                     mat = display_paths(path_1, path_2, y,
                                         scrolled1, scrolled2, panel,*showd)
-                elif os.path.isfile(os.path.join(path_1, name)) if not panel else os.path.isfile(os.path.join(path_2, name)):
-                    ## --TODO: make file opening doable
-                    path_c2 = (os.path.join(path_1,name) if not panel else os.path.join(path_2,name))
-                    if path_c2.split(".")[-1] in ["lz4","bd2","zip","gz","zlib"]:
-                        all_c2 = compressor.decompress(os.path.join(
-                            path_1, ''.join((name, ext))) if not panel else os.path.join(path_2, ''.join((name, ext))))
+                elif os.path.isfile(os.path.join(path, name)):
+                    path_c2 = os.path.join(path,name)
+                    if ext in ["lz4","bd2","zip","gz","zlib"]:
+                        all_c2 = compressor.decompress(os.path.join(path_c2,ext))
                     else:
                         with open(path_c2) as fp:
                             all_c2 = fp.read()
@@ -283,26 +289,18 @@ def cli_interface(config,config_path):
                 mat = [x for x in display_paths(
                     path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
             elif char == 'c':
-                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
-                                     .removesuffix("\033[0m").strip()
-                logging.info("Compressing {0}".format(mat[y, 0]))
-                if not panel:
-                    data_c, ext_c = compressor.compress(os.path.join(
-                                path_1, mat[y, 0]), config.get("compress", 5))
-                    with open(os.path.join(path_1,mat[y, 0])+f".{ext_c}","wb") as fp:
-                        fp.write(data_c)
-                else:
-                    data_c, ext_c = compressor.compress(os.path.join(
-                                path_2, mat[y, 4]), config.get("compress", 5))
-                    with open(os.path.join(path_1,mat[y, 0])+f".{ext_c}","wb") as fp:
-                        fp.write(data_c)
+                name = mat[y,0] if path == path_1 else mat[y,4]
+                logging.info("Compressing {0}".format(name))
+
+                data_c, ext_c = compressor.compress(os.path.join(
+                            path, name), config.get("compression-algo", "gzip"))
+                with open(os.path.join(path,name)+f".{ext_c}","wb") as fp:
+                    fp.write(data_c)
 
             elif char == 'd':
 
-                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
-                                     .removesuffix("\033[0m").strip()
-                logging.info("Decompressing {0}".format(mat[y, 0]))
                 if not panel:
+                    logging.info("Decompressing {0}".format(mat[y, 0]))
 
                     result = compressor.decompress(os.path.join(
                             path_1, mat[y, 0]))
@@ -334,25 +332,38 @@ def cli_interface(config,config_path):
                     os.rename(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
             elif char == 'x':
-                logging.info("Deleting {0}".format(mat[y, 0]))
-                if not panel:
-                    os.remove(os.path.join(path_1, mat[y, 0]))
-                else:
-                    os.remove(os.path.join(path_2, mat[y, 4]))
-            #if is f5
-            elif char == '\x15':
+                name = mat[y,0] if path == path_1 else mat[y,4]
+                logging.info("Deleting {0}".format(name))
+                i = input("Are you sure you want to delete '{}'? (N/y)".format(name))
+                if i.upper() == 'Y':
+                    if os.path.isdir(os.path.join(path,name)):
+                        shutil.rmtree(os.path.join(path, name))
+                    else:
+                        logging.info("Deleting {0}".format(name))
+                        os.remove(os.path.join(path, name))
+
+            elif char == 'z':  ##changed from F5 to cease cross-compatibility issues
                 #copy the file to the other panel
                 logging.info("Copying {0}".format(mat[y, 0]))
+
+
+                if os.path.isdir(os.path.join(path,mat[y,0] if not panel else mat[y,4])):
+                    copy_function = shutil.copytree
+                    logging.info("copy function: copytree")
+                else:
+                    copy_function = shutil.copy
+                    logging.info("copy function: copy")
+
                 if not panel:
-                    shutil.copy(os.path.join(path_1, mat[y, 0]), os.path.join(
+                    copy_function(os.path.join(path_1, mat[y, 0]), os.path.join(
                         path_2, mat[y, 0]))
                 else:
-                    shutil.copy(os.path.join(path_2, mat[y, 4]), os.path.join(
+                    copy_function(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
 
 
         except Exception as e:
-            logging.error(e)
+            logging.exception(e)
             errors.append(repr(e))
             y = 1
             if not panel:
@@ -391,9 +402,7 @@ def argument_parsing():
     parser.add_argument("-o", "--output", type=str,
                         help="Path to the output file")
     parser.add_argument("-V", "--version", help="print version and exit")
-    parser.add_argument("-c1", "--compress-level",
-                        type=int, help="level of compression")
-    parser.add_argument("-c4", "--compress-algorithm", type=str,
+    parser.add_argument("-ca", "--compression-algorithm", type=str,
                         choices=["lz4", "bz2", "gzip", "zlib"], help="algorithm of compression")
     parser.add_argument("-v", "--verbose",
                         action="store_true", help="verbose mode")
@@ -417,13 +426,16 @@ def main():
         logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                 format=config["log"].get("format"), datefmt=config["log"].get("datefmt"))
 
+    if args.compression_algorithm:
+        config["compression-algo"] = args.compression_algorithm;
+
+
     logger=logging.getLogger("hse")
 
     logger.debug("Started")
     logger.debug(f"Config file initialized: {args.config}")
     logger.debug(f"Log file initialized: {args.log}")
-    logger.debug(f"Compression level: {args.compress_level}")
-    logger.debug(f"Compression algorithm: {args.compress_algorithm}")
+    logger.debug(f"Compression algorithm: {args.compression_algorithm}")
     logger.debug("Arguments parsed")
     logger.info("Starting cli interface")
     cli_interface(config,os.path.join(os.path.dirname(__file__),args.config))

@@ -28,10 +28,10 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
         return
 
     with open(path,'rb') as f:
-        if path.endswith('.gzip'):
+        if path.endswith('.gz'):
             #gzip
             data = gzip.decompress(f.read())
-            ext = ".gzip"
+            ext = ".gz"
 
         if path.endswith('.lz4'):
             #lz4
@@ -50,45 +50,49 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
 
     return data,ext
 
-def compress(path,level)->bytes:
-    print("compressing",path,level)
+def compress(path,algo)->bytes:
+    #print("compressing",path,level)
     if os.path.isfile(path):
         with open(path,'rb') as fp:
-            content=fp.read()
-            if level<=0:
+            if algo == 'lz4':
+                content=fp.read()
                 return lz4.frame.compress(content),"lz4"
-            elif level==1:
+            elif algo == 'bz2':
                 return bz2.compress(content),"bz2"
-            elif 1>level>9:
-                return gzip.compress(content,level),"gzip"
-            else:
+            elif algo == 'gzip':
+                return gzip.compress(content,level),"gz"
+            elif algo == 'zlib':
                 return zlib.compress(content,level=9),"zlib"
+            else:
+                raise Exception("Compression algorithm not valid.")
     elif os.path.isdir(path):
         #approaching directory
-        if level<=0:
+        if algo == 'lz4':
             #lz4
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
                 return lz4.frame.compress(tar.read()),"tar.lz4"
-        elif level==1:
+        elif algo == 'bz2':
             #bz2
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
                 return bz2.compress(tar.read()),"tar.bz2"
-        elif 1>level>9:
+        elif algo == 'gzip':
             #gzip
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
-                return gzip.compress(tar.read(),level),"tar.gzip"
-        else:
+                return gzip.compress(tar.read(),level),"tar.gz"
+        elif algo == 'zlib':
             #zlib
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
                 return zlib.compress(tar.read(),level=9),"tar.zlib"
+        else:
+            raise Exception("Compression algorithm not valid.")
     else:
         raise FileNotFoundError('File not found')
 
