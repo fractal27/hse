@@ -144,7 +144,7 @@ def cli_interface(config,config_path):
 
     path_1, path_2 = config.get("path_1"),config.get("path_2")
     if not os.path.isdir(path_1) or not os.path.isdir(path_2):
-        logging.error("Error: directory not found");
+        logging.error("Error: directory not found(%(path1)s,%(path2)s)"%{"path1":path_1,"path2":path_2});
         return
     #ext size prot_bits
     showd = config.get("show",{}).get("extension",False),\
@@ -238,18 +238,22 @@ def cli_interface(config,config_path):
                     mat = display_paths(path_1, path_2, y,
                                         scrolled1, scrolled2, panel,*showd)
                 elif os.path.isfile(os.path.join(path_1, name)) if not panel else os.path.isfile(os.path.join(path_2, name)):
-                    if (os.path.join(path_1,name) if not panel else os.path.join(path_2,name)).endswith(ext):
-                        data = compressor.decompress(os.path.join(
+                    ## --TODO: make file opening doable
+                    path_c2 = (os.path.join(path_1,name) if not panel else os.path.join(path_2,name))
+                    if path_c2.split(".")[-1] in ["lz4","bd2","zip","gz","zlib"]:
+                        all_c2 = compressor.decompress(os.path.join(
                             path_1, ''.join((name, ext))) if not panel else os.path.join(path_2, ''.join((name, ext))))
-                    if isinstance(data, str):
-                        mat = display_paths(*
-                                            ((data, path_2) if not panel else (path_1, data)), y, scrolled1, scrolled2, panel, *showd)
-                    elif isinstance(data, bytes):
+                    else:
+                        with open(path_c2) as fp:
+                            all_c2 = fp.read()
+
+                    if isinstance(all_c2, tuple):
+                        data_c2, ext_c2 = all_c2
                         with tempfile.TemporaryFile("wb") as tmp:
-                            tmp.write(data)
+                            tmp.write(data_c2)
                             fileopener.readonly(tmp.name,HEIGHT,WIDTH,False)
                     else:
-                        to_open = os.path.join(path_1, ''.join(name,ext)) if not panel else os.path.join(path_2, ''.join(name,ext))
+                        to_open = path_c2
                         fileopener.readonly(to_open,HEIGHT,WIDTH,False)
                 else:
                     logging.error("File not found")
@@ -271,22 +275,40 @@ def cli_interface(config,config_path):
                 mat = [x for x in display_paths(
                     path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
             elif char == 'c':
+                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
+                                     .removesuffix("\033[0m").strip()
                 logging.info("Compressing {0}".format(mat[y, 0]))
                 if not panel:
-                    compressor.compress(os.path.join(
-                        path_1, mat[y, 0]), config.get("compress", 5))
+                    data_c, ext_c = compressor.compress(os.path.join(
+                                path_1, mat[y, 0]), config.get("compress", 5))
+                    with open(os.path.join(path_1,mat[y, 0])+f".{ext_c}","wb") as fp:
+                        fp.write(data_c)
                 else:
-                    compressor.compress(os.path.join(
-                        path_2, mat[y, 4]), config.get("compress", 5))
+                    data_c, ext_c = compressor.compress(os.path.join(
+                                path_2, mat[y, 4]), config.get("compress", 5))
+                    with open(os.path.join(path_1,mat[y, 0])+f".{ext_c}","wb") as fp:
+                        fp.write(data_c)
+
             elif char == 'd':
 
+                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
+                                     .removesuffix("\033[0m").strip()
                 logging.info("Decompressing {0}".format(mat[y, 0]))
                 if not panel:
-                    compressor.decompress(os.path.join(
-                        path_1, mat[y, 0]))
+
+                    result = compressor.decompress(os.path.join(
+                            path_1, mat[y, 0]))
+                    if result:
+                        data_c, ext_c = result
+                        with open(os.path.join(path_1,mat[y, 0]).removesuffix(ext_c),"wb") as fp:
+                            fp.write(data_c)
                 else:
-                    compressor.decompress(os.path.join(
-                        path_2, mat[y, 4]))
+                    result = compressor.decompress(os.path.join(
+                            path_2, mat[y, 4]))
+                    if result:
+                        data_c, ext_c = result
+                        with open(os.path.join(path_2,mat[y, 0]).removesuffix(ext_c),"wb") as fp:
+                            fp.write(data_c)
             elif char == 'r':
                 logging.info("Renaming {0}".format(mat[y, 0]))
                 if not panel:
@@ -349,6 +371,8 @@ def cli_interface(config,config_path):
 
 
 def argument_parsing():
+    if not os.path.isdir("logs"):
+        os.mkdir("logs");
     parser = argparse.ArgumentParser()
     parser.add_argument("-l", "--log", type=str, default=os.path.join(os.path.dirname(__file__),
                         "logs", f'{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'), help="Path to the log file")

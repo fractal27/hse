@@ -1,3 +1,4 @@
+from typing import Optional
 import gzip
 import lz4.frame
 import zlib
@@ -9,11 +10,11 @@ import tempfile
 import logging
 
 
-def decompress(path):
+def decompress(path)-> Optional[tuple[bytes,str]]:
     """
     Decompress a file.
     :param path: path to the file
-    :return: the decompressed file
+    :return: [bytes] the decompressed file or [None] if transfering directory is not neccessary.
     """
     if not os.path.isfile(path):
         logging.error('Path to decompress is not a file')
@@ -23,38 +24,45 @@ def decompress(path):
             zip_ref.extractall()
         return
     elif path.endswith('.tar'):
-        with tempfile.TemporaryDirectory() as tmp:
-            tarfile.open(path,'rb').extractall(tmp.name)
-            return tmp.name
+        tarfile.open(path,'rb').extractall(path.removesuffix(".tar"))
+        return
 
     with open(path,'rb') as f:
         if path.endswith('.gzip'):
             #gzip
-            return gzip.decompress(f.read())
+            data = gzip.decompress(f.read())
+            ext = ".gzip"
+
         if path.endswith('.lz4'):
             #lz4
-            return lz4.decompress(f.read())
+            data = lz4.decompress(f.read(),wbits=0)
+            ext = ".lz4"
         #zlib
         if path.endswith(".zlib"):
             #zlib
-            return zlib.decompress(f.read())
+            data = zlib.decompress(f.read())
+            ext = ".zlib"
+
         if path.endswith('.bz2'):
             #bz2
-            return bz2.decompress(f.read())
-        return f.read()
+            data = bz2.decompress(f.read())
+            ext = ".bz2"
 
-def compress(path,level):
+    return data,ext
+
+def compress(path,level)->bytes:
+    print("compressing",path,level)
     if os.path.isfile(path):
         with open(path,'rb') as fp:
             content=fp.read()
             if level<=0:
-                return lz4.frame.compress(content)
+                return lz4.frame.compress(content),"lz4"
             elif level==1:
-                return bz2.compress(content)
+                return bz2.compress(content),"bz2"
             elif 1>level>9:
-                return gzip.compress(content,level)
+                return gzip.compress(content,level),"gzip"
             else:
-                return zlib.compress(content,level=9)
+                return zlib.compress(content,level=9),"zlib"
     elif os.path.isdir(path):
         #approaching directory
         if level<=0:
@@ -62,25 +70,25 @@ def compress(path,level):
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
-                return lz4.frame.compress(tar.read())
+                return lz4.frame.compress(tar.read()),"tar.lz4"
         elif level==1:
             #bz2
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
-                return bz2.compress(tar.read())
+                return bz2.compress(tar.read()),"tar.bz2"
         elif 1>level>9:
             #gzip
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
-                return gzip.compress(tar.read(),level)
+                return gzip.compress(tar.read(),level),"tar.gzip"
         else:
             #zlib
             with tempfile.TemporaryDirectory() as tmp:
                 with tarfile.open(tmp,'w') as tar:
                     tar.add(path)
-                return zlib.compress(tar.read(),level=9)
+                return zlib.compress(tar.read(),level=9),"tar.zlib"
     else:
         raise FileNotFoundError('File not found')
 

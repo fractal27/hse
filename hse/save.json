@@ -4,8 +4,8 @@
         "format": "[ %(asctime)s ] %(levelname)s: %(message)s",
         "datefmt": "%Y-%m-%d %H:%M:%S %p"
     },
-    "path_1": "/home/kali",
-    "path_2": "/home/kali",
+    "path_1": "/home/dome/Personal",
+    "path_2": "/home/dome/Personal",
     "last_save": {
         "year": 2024,
         "month": 11,
