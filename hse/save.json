@@ -4,12 +4,9 @@
         "format": "[ %(asctime)s ] %(levelname)s: %(message)s",
         "datefmt": "%Y-%m-%d %H:%M:%S %p"
     },
-    "path_1": "/home/dome/Personal",
-    "path_2": "/home/dome/Personal",
+    "path_1": null,
+    "path_2": null,
     "last_save": {
-        "year": 2024,
-        "month": 11,
-        "day": 23
     },
     "show": {
         "protection_bits": true,

@@ -58,9 +58,9 @@ The default configuration is structured as follows:
 {
     "log":{
         "verbose":false,
-        "path":"./logs/info.log",
         "format":"[ %(asctime)s ] %(levelname)s: %(message)s",
-        "datefmt":"%Y-%m-%d %H:%M:%S %p"},
+        "datefmt":"%Y-%m-%d %H:%M:%S %p"
+    },
     "path_1":".",
     "path_2":".",
     "last_save":{
@@ -76,6 +76,8 @@ The default configuration is structured as follows:
 }
 ~~~
 Obviously, you can change the configuration as long as you don't change the name of the file.
+the configuration gets auto-formatted every time the program is used.
+
 
 ## Features
 - The explorer is divided into 2 panels

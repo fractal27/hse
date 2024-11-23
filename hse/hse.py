@@ -16,8 +16,10 @@ WIDTH, HEIGHT = os.get_terminal_size()
 WIDTH = int(WIDTH/8)
 HEIGHT -= 2
 errors = []
+LINUX = True
 
 if sys.platform.startswith("win32"):
+    LINUX = False
     # changing kernel mode in Windows to enable ansii escape sequences
 
     import ctypes
@@ -143,6 +145,12 @@ def cli_interface(config,config_path):
 
 
     path_1, path_2 = config.get("path_1"),config.get("path_2")
+    if path_1 == None:
+        if LINUX: path_1="/home"
+        else:     path_1="C:\\Users"
+    if path_2 == None:
+        if LINUX:path_2="/home"
+        else:    path_2="C:\\Users"
     if not os.path.isdir(path_1) or not os.path.isdir(path_2):
         logging.error("Error: directory not found(%(path1)s,%(path2)s)"%{"path1":path_1,"path2":path_2});
         return
