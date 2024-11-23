@@ -68,10 +68,10 @@ The default configuration is structured as follows:
         "month":6,
         "day":6
     },
-    "last_load":{
-        "year":2022,
-        "month":6,
-        "day":6
+    "show":{
+        "extension":true,
+        "size":true,
+        "protection_bits":true
     }
 }
 ~~~
