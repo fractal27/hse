@@ -27,22 +27,21 @@ def decompress(path):
             tarfile.open(path,'rb').extractall(tmp.name)
             return tmp.name
 
-    with open(path, 'rb') as f:
-        header = f.read(2)
-        if header == b'\x1f\x8b':
+    with open(path,'rb') as f:
+        if path.endswith('.gzip'):
             #gzip
             return gzip.decompress(f.read())
-        elif header == b'\x04\x22':
+        if path.endswith('.lz4'):
             #lz4
             return lz4.decompress(f.read())
-        elif header == b'\x1f\x9d':
+        #zlib
+        if path.endswith(".zlib"):
             #zlib
             return zlib.decompress(f.read())
-        elif header == b'\x42\x5a':
+        if path.endswith('.bz2'):
             #bz2
             return bz2.decompress(f.read())
-        else:
-            return f.read()
+        return f.read()
 
 def compress(path,level):
     if os.path.isfile(path):

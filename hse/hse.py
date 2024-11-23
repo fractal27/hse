@@ -8,9 +8,9 @@ import json
 from datetime import datetime
 import sys
 from typing import Literal
-import subprocess
 from translate_pb import human_readable
 import shutil
+import fileopener
 
 WIDTH, HEIGHT = os.get_terminal_size()
 WIDTH = int(WIDTH/8)
@@ -61,39 +61,53 @@ def gettext(x):
     return str(x).center(WIDTH, ' ')[:WIDTH]
 
 
-def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled2: int = 0, panel: Literal[0, 1] = 0):
+def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled2: int = 0, panel: Literal[0, 1] = 0,
+                  showextension : bool=False, showsize : bool=False, showprotectionbits : bool=False):
 
     try:
         logging.info("Displaying {0}, {1}".format(path_1, path_2))
-        print("before")
+
         paths_1, paths_2 = os.listdir(path_1)[
             scrolled1:scrolled1+HEIGHT-1], os.listdir(path_2)[scrolled2:scrolled2+HEIGHT-1]
-        print("after")
+
 
         paths_1 += [' ']*(abs(len(paths_1)-HEIGHT)-1)
         paths_2 += [' ']*(abs(len(paths_2)-HEIGHT)-1)
 
-        exts_1 = [os.path.splitext(path)[1] for path in paths_1]
-        exts_2 = [os.path.splitext(path)[1] for path in paths_2]
-
+        if showextension:
+            exts_1 = [os.path.splitext(path)[1] for path in paths_1]
+            exts_2 = [os.path.splitext(path)[1] for path in paths_2]
+        else:
+            exts_1 = [' ']*len(paths_1)
+            exts_2 = [' ']*len(paths_2)
         logging.debug("Extensions Calculated.")
 
-        dims_1 = [os.path.getsize(os.path.join(path_1, x))
+        if showsize:
+            dims_1 = [os.path.getsize(os.path.join(path_1, x))
                   if x != ' ' else 0 for x in paths_1]
-        dims_2 = [os.path.getsize(os.path.join(path_2, x))
+            dims_2 = [os.path.getsize(os.path.join(path_2, x))
                   if x != ' ' else 0 for x in paths_2]
+        else:
+            dims_1 = [' ']*len(paths_1)
+            dims_2 = [' ']*len(paths_2)
 
         logging.debug("Dimensions Calculated.")
 
-        attrs_1 = list(map(human_readable, [os.stat(os.path.join(path_1, x)).st_mode & 0o777 if x !=
+        if showprotectionbits:
+            attrs_1 = list(map(human_readable, [os.stat(os.path.join(path_1, x)).st_mode & 0o777 if x !=
                                             ' ' else '?' for x in paths_1]))
-        attrs_2 = list(map(human_readable, [os.stat(os.path.join(path_2, x)).st_mode & 0o777 if x !=
+            attrs_2 = list(map(human_readable, [os.stat(os.path.join(path_2, x)).st_mode & 0o777 if x !=
                                             ' ' else '?' for x in paths_2]))
+        else:
+            attrs_1 = [' ']*len(paths_1)
+            attrs_2 = [' ']*len(paths_2)
 
         logging.debug("Protection Bits Calculated.")
     except Exception as e:
         logging.error(f"Error: {e}")
         return
+    else:
+        logging.debug("Display setup ran Succesfully!")
 
     mat = np.zeros((HEIGHT, 8), dtype=object)
 
@@ -117,8 +131,7 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
 
     mat[y, ORIZZ_SLICE] = [f'\033[7m{x}\033[0m' for x in mat[y, ORIZZ_SLICE]]
 
-    logging.debug("Matrix Calculated.")
-    logging.info("Matrix displayed properly.")
+    logging.debug("Matrix Displayed properly.")
 
     name = mat[y, 0] if not panel else mat[y, 4]
 
@@ -130,6 +143,14 @@ def cli_interface(config,config_path):
 
 
     path_1, path_2 = config.get("path_1"),config.get("path_2")
+    if not os.path.isdir(path_1) or not os.path.isdir(path_2):
+        logging.error("Error: directory not found");
+        return
+    #ext size prot_bits
+    showd = config.get("show",{}).get("extension",False),\
+            config.get("show",{}).get("size",False),\
+            config.get("show",{}).get("protection_bits",False)
+
     path_1, path_2 = os.path.abspath(path_1), os.path.abspath(path_2)
 
     y = 1
@@ -140,14 +161,14 @@ def cli_interface(config,config_path):
         try:
             clear()
             if not SEARCH:
-                mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel)
+                mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel, *showd)
             else:
                 if not panel:
                     mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel) if SEARCH in x[0]]
+                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[0]]
                 else:
                     mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel) if SEARCH in x[4]]
+                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
 
             char = getch()
             logging.debug("Key pressed: {0}".format(char))
@@ -166,7 +187,7 @@ def cli_interface(config,config_path):
                 panel = 1-panel
                 y = 1
 
-            elif char == 'w':
+            elif char in ['w', 'k']:
                 y -= 1
                 if y < 1:
                     y = 1
@@ -176,7 +197,7 @@ def cli_interface(config,config_path):
                     elif panel and scrolled2 > 0:
                         scrolled2 -= 1
 
-            elif char == 's':
+            elif char in ['s', 'j']:
                 if y == HEIGHT-1:
                     if not panel:
                         scrolled1 += 1
@@ -204,7 +225,7 @@ def cli_interface(config,config_path):
                     ext = ''
                 y = 1
                 scrolled1, scrolled2 = 0, 0
-                logging.info("Opening {0}".format(mat[y, 0]))
+                logging.info("Opening {0}".format(name))
                 clear()
 
                 if os.path.isdir(os.path.join(path_1, name)) if not panel else os.path.isdir(os.path.join(path_2, name)):
@@ -215,20 +236,21 @@ def cli_interface(config,config_path):
                     path_2 = path_2 if not panel else os.path.join(
                         to_change, name)
                     mat = display_paths(path_1, path_2, y,
-                                        scrolled1, scrolled2, panel)
+                                        scrolled1, scrolled2, panel,*showd)
                 elif os.path.isfile(os.path.join(path_1, name)) if not panel else os.path.isfile(os.path.join(path_2, name)):
-                    data = compressor.decompress(os.path.join(
-                        path_1, ''.join((name, ext))) if not panel else os.path.join(path_2, ''.join((name, ext))))
+                    if (os.path.join(path_1,name) if not panel else os.path.join(path_2,name)).endswith(ext):
+                        data = compressor.decompress(os.path.join(
+                            path_1, ''.join((name, ext))) if not panel else os.path.join(path_2, ''.join((name, ext))))
                     if isinstance(data, str):
                         mat = display_paths(*
-                                            ((data, path_2) if not panel else (path_1, data)), y, scrolled1, scrolled2, panel)
+                                            ((data, path_2) if not panel else (path_1, data)), y, scrolled1, scrolled2, panel, *showd)
                     elif isinstance(data, bytes):
                         with tempfile.TemporaryFile("wb") as tmp:
                             tmp.write(data)
-                            subprocess.Popen(
-                                f'"{tmp.path}"', shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                            fileopener.readonly(tmp.name,HEIGHT,WIDTH,False)
                     else:
-                        logging.error("Unknown type")
+                        to_open = os.path.join(path_1, ''.join(name,ext)) if not panel else os.path.join(path_2, ''.join(name,ext))
+                        fileopener.readonly(to_open,HEIGHT,WIDTH,False)
                 else:
                     logging.error("File not found")
             elif char == '\b':
@@ -238,16 +260,16 @@ def cli_interface(config,config_path):
                 else:
                     path_2 = os.path.dirname(path_2)
                 clear()
-                mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel)
+                mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel,*showd)
             elif char == '/':
                 logging.info("Searching")
                 SEARCH = input(":")
                 if not panel:
                     mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel) if SEARCH in x[0]]
+                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[0]]
                     continue
                 mat = [x for x in display_paths(
-                    path_1, path_2, y, scrolled1, scrolled2, panel) if SEARCH in x[4]]
+                    path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
             elif char == 'c':
                 logging.info("Compressing {0}".format(mat[y, 0]))
                 if not panel:
@@ -298,11 +320,19 @@ def cli_interface(config,config_path):
                     shutil.copy(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
 
-            
+
         except Exception as e:
             logging.error(e)
             errors.append(repr(e))
-    
+            y = 1
+            if not panel:
+                path_1 = os.path.dirname(path_1)
+                mat = [x for x in display_paths(path_1,path_2,y,scrolled1,scrolled2,panel,*showd) if not x[0].endswith(" "*WIDTH)]
+            else:
+                path_2 = os.path.dirname(path_2)
+                mat = [x for x in display_paths(path_1,path_2,y,scrolled1,scrolled2,panel,*showd) if not x[4].endswith(" "*WIDTH)]
+
+
     logging.info("Saving to file")
     today = datetime.today()
     logging.debug("changing data...")
@@ -311,7 +341,8 @@ def cli_interface(config,config_path):
     config["path_2"] = path_2
     config["errors"] = errors
     logging.debug("Encoding configuration and saving...")
-    to_save = json.encoder.JSONEncoder().encode(config)
+    #prettify the json
+    to_save = json.dumps(config, indent=4)
     with open(config_path,'w') as fp:
         fp.write(to_save)
     logging.info("Saved configuration to file")
@@ -319,14 +350,15 @@ def cli_interface(config,config_path):
 
 def argument_parsing():
     parser = argparse.ArgumentParser()
-    #parser.add_argument("-l", "--log", type=str, default=os.path.join(os.path.dirname(__file__),
-    #                    "logs", f'{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'), help="Path to the log file")
-    parser.add_argument("-l", "--log", type=str, default=None, help="Path to the log file")
+    parser.add_argument("-l", "--log", type=str, default=os.path.join(os.path.dirname(__file__),
+                        "logs", f'{datetime.now().strftime("%Y%m%d-%H%M%S")}.log'), help="Path to the log file")
+    #parser.add_argument("-l", "--log", type=str, default=None, help="Path to the log file")
 
 
     parser.add_argument("-c","--config", type=str, help="configuration file to use", default=os.path.join(os.path.dirname(__file__),'save.json'))
     parser.add_argument("-o", "--output", type=str,
                         help="Path to the output file")
+    parser.add_argument("-V", "--version", help="print version and exit")
     parser.add_argument("-c1", "--compress-level",
                         type=int, help="level of compression")
     parser.add_argument("-c4", "--compress-algorithm", type=str,
@@ -338,6 +370,10 @@ def argument_parsing():
 
 def main():
     args = argument_parsing()
+    if args.version:
+        from . import __version__
+        print(__version__)
+        return
     if not os.path.isfile(args.config):
         print("Config file not found")
         return
