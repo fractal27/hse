@@ -68,29 +68,34 @@ def compress(path,algo)->bytes:
     elif os.path.isdir(path):
         #approaching directory
         if algo == 'lz4':
-            #lz4
-            with tempfile.TemporaryDirectory() as tmp:
-                with tarfile.open(tmp,'w') as tar:
+            #TODO: make lz4 adaptation with tar
+            """with tempfile.NamedTemporaryFile("rb+") as tmp: ## doestn' work
+                with tarfile.open(tmp.name,'w') as tar:
                     tar.add(path)
-                return lz4.frame.compress(tar.read()),"tar.lz4"
+                return lz4.frame.compress(tar.read()),"tar.lz4"""
+            return NotImplemented
         elif algo == 'bz2':
             #bz2
-            with tempfile.TemporaryDirectory() as tmp:
-                with tarfile.open(tmp,'w') as tar:
+            with tempfile.NamedTemporaryFile("rb+",delete_on_close=False) as tmp:
+                with tarfile.open(tmp.name,'w:bz2') as tar:
                     tar.add(path)
-                return bz2.compress(tar.read()),"tar.bz2"
+                data = tmp.read()
+            return data,"bz2"
         elif algo == 'gzip':
             #gzip
-            with tempfile.TemporaryDirectory() as tmp:
-                with tarfile.open(tmp,'w') as tar:
+            with tempfile.NamedTemporaryFile("rb+",delete_on_close=False) as tmp:
+                with tarfile.open(tmp.name,'w:gz') as tar:
                     tar.add(path)
-                return gzip.compress(tar.read(),level),"tar.gz"
+                    tar.add(path)
+                data = tmp.read()
+            return data,"bz2"
         elif algo == 'zlib':
-            #zlib
-            with tempfile.TemporaryDirectory() as tmp:
-                with tarfile.open(tmp,'w') as tar:
+            #TODO: make zlib adaptation with tar
+            """with tempfile.NamedTemporaryFile("rb+") as tmp:
+                with tarfile.open(tmp.name,'w') as tar:
                     tar.add(path)
-                return zlib.compress(tar.read(),level=9),"tar.zlib"
+                return zlib.compress(tar.read(),level=9),"tar.zlib"""
+            return NotImplemented
         else:
             raise Exception("Compression algorithm not valid.")
     else:
