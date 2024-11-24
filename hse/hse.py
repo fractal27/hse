@@ -181,13 +181,14 @@ def cli_interface(config,config_path):
             char = getch()
             logging.debug("Key pressed: {0}".format(char))
             if not panel:
-                mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
+                name = mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
                                      .removesuffix("\033[0m").strip()
                 path = path_1
             else:
-                mat[y, 4] = mat[y, 4].removeprefix("\033[7m")\
-                                     .removesuffix("\033[0m").strip()
+                name = mat[y, 4] = mat[y, 4].removeprefix("\033[7m")\
+                                        .removesuffix("\033[0m").strip()
                 path = path_2
+            fullpath = os.path.join(path,name)
 
             if char.isdigit():
                 if not panel:
@@ -244,7 +245,7 @@ def cli_interface(config,config_path):
                 logging.info("Opening {0}".format(f"{name}/{path}"))
                 clear()
 
-                if os.path.isdir(os.path.join(path, name)):
+                if os.path.isdir(fullpath):
                     logging.debug("Is a directory:")
                     to_change = path
                     path_1 = path_1 if     panel else os.path.join(
@@ -253,13 +254,15 @@ def cli_interface(config,config_path):
                         to_change, name)
                     mat = display_paths(path_1, path_2, y,
                                         scrolled1, scrolled2, panel,*showd)
-                elif os.path.isfile(os.path.join(path, name)):
-                    path_c2 = os.path.join(path,name)
-                    if ext in ["lz4","bd2","zip","gz","zlib"]:
-                        all_c2 = compressor.decompress(os.path.join(path_c2,ext))
+                elif os.path.isfile(fullpath):
+                    #TODO: support automatic decompression when opening files
+                    """
+                    if ext in ["lz4","bd2","zip","gz","zlib"]: # snippet
                     else:
-                        with open(path_c2) as fp:
-                            all_c2 = fp.read()
+                    """
+
+                    with open(path_c2) as fp:
+                        all_c2 = fp.read()
 
                     if isinstance(all_c2, tuple):
                         data_c2, ext_c2 = all_c2
@@ -289,32 +292,19 @@ def cli_interface(config,config_path):
                 mat = [x for x in display_paths(
                     path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
             elif char == 'c':
-                name = mat[y,0] if path == path_1 else mat[y,4]
                 logging.info("Compressing {0}".format(name))
 
-                data_c, ext_c = compressor.compress(os.path.join(
-                            path, name), config.get("compression-algo", "gzip"))
+                data_c, ext_c = compressor.compress(
+                        fullpath, config.get("compression-algo", "gzip"))
                 with open(os.path.join(path,name)+f".{ext_c}","wb") as fp:
                     fp.write(data_c)
 
             elif char == 'd':
+                logging.info("Decompressing {0}".format(name))
 
-                if not panel:
-                    logging.info("Decompressing {0}".format(mat[y, 0]))
-
-                    result = compressor.decompress(os.path.join(
-                            path_1, mat[y, 0]))
-                    if result:
-                        data_c, ext_c = result
-                        with open(os.path.join(path_1,mat[y, 0]).removesuffix(ext_c),"wb") as fp:
-                            fp.write(data_c)
-                else:
-                    result = compressor.decompress(os.path.join(
-                            path_2, mat[y, 4]))
-                    if result:
-                        data_c, ext_c = result
-                        with open(os.path.join(path_2,mat[y, 0]).removesuffix(ext_c),"wb") as fp:
-                            fp.write(data_c)
+                result = compressor.decompress(fullpath)
+                if result == NotImplemented:
+                    raise NotImplementedError("Not implemented algorithm")
             elif char == 'r':
                 logging.info("Renaming {0}".format(mat[y, 0]))
                 if not panel:
@@ -332,15 +322,14 @@ def cli_interface(config,config_path):
                     os.rename(os.path.join(path_2, mat[y, 4]), os.path.join(
                         path_1, mat[y, 4]))
             elif char == 'x':
-                name = mat[y,0] if path == path_1 else mat[y,4]
                 logging.info("Deleting {0}".format(name))
                 i = input("Are you sure you want to delete '{}'? (N/y)".format(name))
                 if i.upper() == 'Y':
-                    if os.path.isdir(os.path.join(path,name)):
-                        shutil.rmtree(os.path.join(path, name))
+                    if os.path.isdir(fullpath):
+                        shutil.rmtree(fullpath)
                     else:
                         logging.info("Deleting {0}".format(name))
-                        os.remove(os.path.join(path, name))
+                        os.remove(fullpath)
 
             elif char == 'z':  ##changed from F5 to cease cross-compatibility issues
                 #copy the file to the other panel
@@ -349,17 +338,13 @@ def cli_interface(config,config_path):
 
                 if os.path.isdir(os.path.join(path,mat[y,0] if not panel else mat[y,4])):
                     copy_function = shutil.copytree
-                    logging.info("copy function: copytree")
                 else:
                     copy_function = shutil.copy
-                    logging.info("copy function: copy")
 
                 if not panel:
-                    copy_function(os.path.join(path_1, mat[y, 0]), os.path.join(
-                        path_2, mat[y, 0]))
+                    copy_function(os.path.join(path_1, name), os.path.join(path_2, name))
                 else:
-                    copy_function(os.path.join(path_2, mat[y, 4]), os.path.join(
-                        path_1, mat[y, 4]))
+                    copy_function(os.path.join(path_2, name), os.path.join(path_1, name))
 
 
         except Exception as e:

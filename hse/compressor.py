@@ -18,40 +18,37 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
     """
     if not os.path.isfile(path):
         logging.error('Path to decompress is not a file')
+        return NotImplemented
     #get the compression algorithm of the file
     if path.endswith('.zip'):
         with zipfile.ZipFile(path, 'r') as zip_ref:
             zip_ref.extractall()
         return
-    elif path.endswith('.tar'):
-        tarfile.open(path,'rb').extractall(path.removesuffix(".tar"))
-        return
 
-    with open(path,'rb') as f:
-        if path.endswith('.gz'):
-            #gzip
-            data = gzip.decompress(f.read())
-            ext = ".gz"
-
-        if path.endswith('.lz4'):
+    if path.endswith('.tar.gz'):
+        with tarfile.open(path,'r:gz') as tf: #gzip
+            tf.extractall(filter="data")
+    elif path.endswith('.tar.lz4'):
+        """with tarfile.open(path,"w")
             #lz4
             data = lz4.decompress(f.read(),wbits=0)
-            ext = ".lz4"
-        #zlib
+            ext = ".lz4"""""
+        return NotImplemented
+    elif path.endswith(".tar.zlib"):
+        """#zlib
         if path.endswith(".zlib"):
             #zlib
             data = zlib.decompress(f.read())
-            ext = ".zlib"
-
-        if path.endswith('.bz2'):
-            #bz2
-            data = bz2.decompress(f.read())
-            ext = ".bz2"
-
-    return data,ext
+            ext = ".zlib"""""
+        return NotImplemented
+    elif path.endswith(".tar.bz2"):
+        with tarfile.open(path,"r:bz2") as tf: #bz2
+            tf.extractall(filter="data")
+    return
 
 def compress(path,algo)->bytes:
     #print("compressing",path,level)
+    logging.info(f"::{path},{algo}")
     if os.path.isfile(path):
         with open(path,'rb') as fp:
             if algo == 'lz4':
@@ -60,7 +57,7 @@ def compress(path,algo)->bytes:
             elif algo == 'bz2':
                 return bz2.compress(content),"bz2"
             elif algo == 'gzip':
-                return gzip.compress(content,level),"gz"
+                return gzip.compress(content),"gz"
             elif algo == 'zlib':
                 return zlib.compress(content,level=9),"zlib"
             else:
@@ -80,15 +77,14 @@ def compress(path,algo)->bytes:
                 with tarfile.open(tmp.name,'w:bz2') as tar:
                     tar.add(path)
                 data = tmp.read()
-            return data,"bz2"
+            return data,"tar.bz2"
         elif algo == 'gzip':
             #gzip
             with tempfile.NamedTemporaryFile("rb+",delete_on_close=False) as tmp:
                 with tarfile.open(tmp.name,'w:gz') as tar:
                     tar.add(path)
-                    tar.add(path)
                 data = tmp.read()
-            return data,"bz2"
+            return data,"tar.gz"
         elif algo == 'zlib':
             #TODO: make zlib adaptation with tar
             """with tempfile.NamedTemporaryFile("rb+") as tmp:
