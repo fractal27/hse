@@ -16,6 +16,7 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
     :param path: path to the file
     :return: [bytes] the decompressed file or [None] if transfering directory is not neccessary.
     """
+    logging.info(f"::[-1]\"{path}\"")
     if not os.path.isfile(path):
         logging.error('Path to decompress is not a file')
         return NotImplemented
@@ -27,7 +28,7 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
 
     if path.endswith('.tar.gz'):
         with tarfile.open(path,'r:gz') as tf: #gzip
-            tf.extractall(filter="data")
+            tf.extractall(path=path.removesuffix(".tar.gz"))
     elif path.endswith('.tar.lz4'):
         """with tarfile.open(path,"w")
             #lz4
@@ -43,16 +44,16 @@ def decompress(path)-> Optional[tuple[bytes,str]]:
         return NotImplemented
     elif path.endswith(".tar.bz2"):
         with tarfile.open(path,"r:bz2") as tf: #bz2
-            tf.extractall(filter="data")
+            tf.extractall(path=path.removesuffix(".tar.gz"))
     return
 
 def compress(path,algo)->bytes:
     #print("compressing",path,level)
-    logging.info(f"::{path},{algo}")
+    logging.info(f"::\"{path}\",\"{algo}\".")
     if os.path.isfile(path):
         with open(path,'rb') as fp:
+            content=fp.read()
             if algo == 'lz4':
-                content=fp.read()
                 return lz4.frame.compress(content),"lz4"
             elif algo == 'bz2':
                 return bz2.compress(content),"bz2"
@@ -73,14 +74,14 @@ def compress(path,algo)->bytes:
             return NotImplemented
         elif algo == 'bz2':
             #bz2
-            with tempfile.NamedTemporaryFile("rb+",delete_on_close=False) as tmp:
+            with tempfile.NamedTemporaryFile("rb+") as tmp:
                 with tarfile.open(tmp.name,'w:bz2') as tar:
                     tar.add(path)
                 data = tmp.read()
             return data,"tar.bz2"
         elif algo == 'gzip':
             #gzip
-            with tempfile.NamedTemporaryFile("rb+",delete_on_close=False) as tmp:
+            with tempfile.NamedTemporaryFile("rb+") as tmp:
                 with tarfile.open(tmp.name,'w:gz') as tar:
                     tar.add(path)
                 data = tmp.read()

@@ -5,11 +5,11 @@
         "datefmt": "%Y-%m-%d %H:%M:%S %p"
     },
     "path_1": "/home/dome/.vim",
-    "path_2": "/home/dome/Personal",
+    "path_2": "/home/dome",
     "last_save": {
         "year": 2024,
         "month": 11,
-        "day": 24
+        "day": 25
     },
     "show": {
         "protection_bits": true,
@@ -17,5 +17,7 @@
         "extension": true
     },
     "compression-algo": "gzip",
-    "errors": []
+    "errors": [
+        "FileNotFoundError(2, 'No such file or directory')"
+    ]
 }
