@@ -64,24 +64,34 @@ def gettext(x):
 
 
 def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled2: int = 0, panel: Literal[0, 1] = 0,
-                  showextension : bool=False, showsize : bool=False, showprotectionbits : bool=False):
+                  showextension : bool=False, showsize : bool=False, showprotectionbits : bool=False, SEARCH = None):
 
     try:
-        logging.info("Displaying {0}, {1}".format(path_1, path_2))
+        #logging.info("Displaying {0}, {1}".format(path_1, path_2))
 
         paths_1, paths_2 = os.listdir(path_1)[
             scrolled1:scrolled1+HEIGHT-1], os.listdir(path_2)[scrolled2:scrolled2+HEIGHT-1]
 
+        if SEARCH and isinstance(SEARCH,str):
+            if not panel:
+                paths_1 = [x for x in paths_1 if SEARCH in x]
+            else:
+                paths_2 = [x for x in paths_2 if SEARCH in x]
 
         paths_1 += [' ']*(abs(len(paths_1)-HEIGHT)-1)
         paths_2 += [' ']*(abs(len(paths_2)-HEIGHT)-1)
 
+
+        extensions_1 = [os.path.splitext(path)[1] for path in paths_1]
+        extensions_2 = [os.path.splitext(path)[1] for path in paths_2]
+
         if showextension:
-            exts_1 = [os.path.splitext(path)[1] for path in paths_1]
-            exts_2 = [os.path.splitext(path)[1] for path in paths_2]
+            exts_1 = extensions_1
+            exts_2 = extensions_2
         else:
             exts_1 = [' ']*len(paths_1)
             exts_2 = [' ']*len(paths_2)
+
         logging.debug("Extensions Calculated.")
 
         if showsize:
@@ -119,7 +129,7 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
         mat[0, 2*(1+i*2)] = gettext("Size")
         mat[0, 3+i*4] = gettext("Protection Bits")
     mat[1:, 0] = list(map(lambda x: x.ljust(WIDTH, ' ')[:WIDTH], paths_1))
-    mat[1:, 1] = list(map(gettext, exts_1))
+    mat[1:, 1] = list(map(gettext,exts_1))
     mat[1:, 2] = list(map(lambda x: str(x).rjust(WIDTH, ' ')[:WIDTH], dims_1))
     # mat[1:, 2] = list(map(gettext, dims_1))
     mat[1:, 3] = list(map(gettext, attrs_1))
@@ -134,11 +144,24 @@ def display_paths(path_1: str, path_2: str, y: int, scrolled1: int = 0, scrolled
     mat[y, ORIZZ_SLICE] = [f'\033[7m{x}\033[0m' for x in mat[y, ORIZZ_SLICE]]
 
     logging.debug("Matrix Displayed properly.")
-
     name = mat[y, 0] if not panel else mat[y, 4]
 
+    """# temporarily suspended
+    if SEARCH:
+        if not panel:
+            mat[1:] = np.array([row for (row,p) in zip(mat[1:],paths_1[y-1:]) if SEARCH in p])[:HEIGHT-1]
+            exts_1 = [ext for (ext,p) in zip(exts_1[y-1:],paths_1[y-1:]) if SEARCH in p]
+            paths_1 = [p for p in paths_1 if SEARCH in p]
+        else:
+            mat[1:] = np.array([row for (row,p) in zip(mat[1:],paths_2[y-1:]) if SEARCH in p])[:HEIGHT-1]
+            #mat = [row for (row,p) in zip(mat[1:],paths_2[y-1:]) if SEARCH in p]
+            exts_1 = [ext for (ext,p) in zip(exts_2[y-1:],paths_2[y-1:]) if SEARCH in p]
+            paths_2 = [p for p in paths_2 if SEARCH in p]
+    """
+
+
     print(*[''.join(x) for x in mat], name, sep='\n')
-    return mat
+    return mat,paths_1,paths_2,exts_1,exts_2
 
 
 def cli_interface(config,config_path):
@@ -165,38 +188,35 @@ def cli_interface(config,config_path):
     panel = 0
     scrolled1, scrolled2 = 0, 0
     SEARCH = None
-    while 1:
+
+    while True:
         try:
             clear()
-            if not SEARCH:
-                mat = display_paths(path_1, path_2, y, scrolled1, scrolled2, panel, *showd)
-            else:
-                if not panel:
-                    mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[0]]
-                else:
-                    mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
+            mat, paths_1, paths_2, exts_1, exts_2 = \
+                    display_paths(path_1, path_2, y, scrolled1, scrolled2, panel, *showd, SEARCH)
 
             char = getch()
-            logging.debug("Key pressed: {0}".format(char))
+            #logging.debug("Key pressed: {0}".format(char))
+            logging.debug(f"{paths_1[y-1]=},{paths_2[y-1]=},{y-1=}")
+            #logging.info(f"\n{paths_1=}\n{paths_2=}")
             if not panel:
-                name = mat[y, 0] = mat[y, 0].removeprefix("\033[7m")\
-                                     .removesuffix("\033[0m").strip()
-                path = path_1
+                fullpath = os.path.join(path_1, paths_1[y-1].strip())
+                path, name = os.path.split(fullpath)
             else:
-                name = mat[y, 4] = mat[y, 4].removeprefix("\033[7m")\
-                                        .removesuffix("\033[0m").strip()
-                path = path_2
-            fullpath = os.path.join(path,name)
+                fullpath = os.path.join(path_2, paths_2[y-1].strip())
+                path, name = os.path.split(fullpath)
 
-            if char.isdigit():
-                if not panel:
-                    y = 1+(int(char)%len([x for x in mat[1:, 0] if x.endswith(' '*HEIGHT)]))
-                    continue
-                y = int(char)%len([x for x in mat[1:, 4] if x.endswith(' '*HEIGHT)])
+            extension = os.path.splitext(fullpath)[1]
 
-            if char in ['q', "\x1b", "\x03", "\x04"]:
+            logging.debug(f"{path=},{fullpath=},{name=},{extension=}")
+
+            #if char.isdigit():
+            #    if not panel:
+            #        y = 1+(int(char)%len([x for x in mat[1:, 0] if x.endswith(' '*HEIGHT)]))
+            #        continue
+            #    y = int(char)%len([x for x in mat[1:, 4] if x.endswith(' '*HEIGHT)])
+
+            if char in ['q']:
                 logging.debug("Exiting")
                 break
 
@@ -235,25 +255,21 @@ def cli_interface(config,config_path):
 
             elif char in ['\n', '\r']:
 
-                name = mat[y, 0] if panel == 0 else mat[y, 4]
-                ext = mat[y, 1] if panel == 0 else mat[y, 5]
-                ext = ext.removeprefix("\033[7m").removesuffix("\033[0m").strip()
-                if ext in name:
-                    ext = ''
+                #name = mat[y, 0] if panel == 0 else mat[y, 4]
+                #ext = mat[y, 1] if panel == 0 else mat[y, 5]
+                ext = extension
                 y = 1
                 scrolled1, scrolled2 = 0, 0
-                logging.info("Opening {0}".format(f"{name}/{path}"))
+                logging.info("Opening `{0}`".format(f"{fullpath}"))
                 clear()
 
                 if os.path.isdir(fullpath):
                     logging.debug("Is a directory:")
-                    to_change = path
-                    path_1 = path_1 if     panel else os.path.join(
-                        to_change, name)
-                    path_2 = path_2 if not panel else os.path.join(
-                        to_change, name)
-                    mat = display_paths(path_1, path_2, y,
-                                        scrolled1, scrolled2, panel,*showd)
+                    path_1 = path_1 if     panel else os.path.abspath(fullpath)
+                    path_2 = path_2 if not panel else os.path.abspath(fullpath)
+
+                    logging.info(f"{os.path.abspath(fullpath)=}")
+                    logging.info(f"updated {path_1=}/{path_2=}")
                 elif os.path.isfile(fullpath):
                     #TODO: support automatic decompression when opening files
                     """
@@ -261,7 +277,7 @@ def cli_interface(config,config_path):
                     else:
                     """
 
-                    with open(path_c2) as fp:
+                    with open(fullpath) as fp:
                         all_c2 = fp.read()
 
                     if isinstance(all_c2, tuple):
@@ -270,12 +286,11 @@ def cli_interface(config,config_path):
                             tmp.write(data_c2)
                             fileopener.readonly(tmp.name,HEIGHT,WIDTH,False)
                     else:
-                        to_open = path_c2
-                        fileopener.readonly(to_open,HEIGHT,WIDTH,False)
+                        fileopener.readonly(fullpath,HEIGHT,WIDTH,False)
                 else:
                     logging.error("File not found")
             elif char == '\b':
-                logging.info("Returning to main directory")
+                logging.info(f"Returning to main directory of \"{path}\"")
                 if not panel:
                     path_1 = os.path.dirname(path_1)
                 else:
@@ -285,12 +300,9 @@ def cli_interface(config,config_path):
             elif char == '/':
                 logging.info("Searching")
                 SEARCH = input(":")
-                if not panel:
-                    mat = [x for x in display_paths(
-                        path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[0]]
-                    continue
-                mat = [x for x in display_paths(
-                    path_1, path_2, y, scrolled1, scrolled2, panel, *showd) if SEARCH in x[4]]
+            elif char == "|":
+                logging.info("Deabilitating search thus far.")
+                SEARCH = None
             elif char == 'c':
                 logging.info("Compressing {0}".format(name))
 
@@ -346,18 +358,22 @@ def cli_interface(config,config_path):
                 else:
                     copy_function(os.path.join(path_2, name), os.path.join(path_1, name))
 
-
+        except KeyboardInterrupt:
+            logging.error("Keyboard Interruption: exiting.")
+            break
         except Exception as e:
             logging.exception(e)
             errors.append(repr(e))
             y = 1
             if not panel:
                 path_1 = os.path.dirname(path_1)
-                mat = [x for x in display_paths(path_1,path_2,y,scrolled1,scrolled2,panel,*showd) if not x[0].endswith(" "*WIDTH)]
             else:
                 path_2 = os.path.dirname(path_2)
-                mat = [x for x in display_paths(path_1,path_2,y,scrolled1,scrolled2,panel,*showd) if not x[4].endswith(" "*WIDTH)]
 
+            ec = input("Error has occurred do you want to quit? (y/N) ")
+            if ec and ec.upper()[0] == 'Y': #short circuit to not run into the error in case input is empty
+                logging.info("Consensus achieved: exiting.")
+                break
 
     logging.info("Saving to file")
     today = datetime.today()

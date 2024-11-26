@@ -20,15 +20,15 @@ And then sectioned in 4 parts:
     q  / ^C  /  esc  : quit
     c                : Compress the item selected with the chosen algorithm
     d                : Decompress the item selected with the chosen algorithm
-    s                : move down in the current section
-    w                : move up in the current section
-    Enter            : open the selected element
+    s/j              : move down in the current section
+    w/k              : move up in the current section
+    Enter            : open the selected element(doesn't use less/xdg-open, a incorporated filereader)
     '/'              : search in the current section
     c                : compress the item currently selected
     1-9              : select the n-th item in the current section
     r                : rename the item currently selected
     m                : Move the item currently selected to the other folder open
-    <F5>             : Copy the item selected to the other folder open
+    <                : Copy the item selected to the other folder open
     x                : Delete an item
     
     'Any Other'      : refresh the current section and do nothing

@@ -4,12 +4,12 @@
         "format": "[ %(asctime)s ] %(levelname)s: %(message)s",
         "datefmt": "%Y-%m-%d %H:%M:%S %p"
     },
-    "path_1": "/home/dome/.vim",
-    "path_2": "/home/dome",
+    "path_1": "/home/dome",
+    "path_2": "/usr/src",
     "last_save": {
         "year": 2024,
         "month": 11,
-        "day": 25
+        "day": 26
     },
     "show": {
         "protection_bits": true,
@@ -17,7 +17,5 @@
         "extension": true
     },
     "compression-algo": "gzip",
-    "errors": [
-        "FileNotFoundError(2, 'No such file or directory')"
-    ]
+    "errors": []
 }
