@@ -403,7 +403,7 @@ def argument_parsing():
     parser.add_argument("-o", "--output", type=str,
                         help="Path to the output file")
     parser.add_argument("-V", "--version", help="print version and exit")
-    parser.add_argument("-ca", "--compression-algorithm", type=str,
+    parser.add_argument("-c", "--compression-algorithm", type=str,
                         choices=["lz4", "bz2", "gzip", "zlib"], help="algorithm of compression")
     parser.add_argument("-v", "--verbose",
                         action="store_true", help="verbose mode")

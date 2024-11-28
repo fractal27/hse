@@ -46,9 +46,7 @@ options:
                         configuration file to use
   -o OUTPUT, --output OUTPUT
                         Path to the output file
-  -c1 COMPRESS_LEVEL, --compress-level COMPRESS_LEVEL
-                        level of compression
-  -c4 {lz4,bz2,gzip,zlib}, --compress-algorithm {lz4,bz2,gzip,zlib}
+  -c {bz2,gzip}, --compress-algorithm (zlib  & other soon to be added)
                         algorithm of compression
   -v, --verbose         verbose mode
 ~~~
